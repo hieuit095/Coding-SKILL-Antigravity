@@ -19,12 +19,42 @@ for (const name of dirs) {
   let desc = '';
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
   if (match) {
-    const fm = match[1];
-    const descMatch = fm.match(/^description\s*:\s*(?:>-\s*|\|\s*)?([\s\S]*?)(?=\r?\n[a-z0-9_-]+\s*:|$)/m);
-    if (descMatch) {
-      desc = descMatch[1].trim().replace(/\r?\n\s*/g, ' ');
+    const lines = match[1].split(/\r?\n/);
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (/^description\s*:\s*/.test(line)) {
+        let rest = line.replace(/^description\s*:\s*/, '').trim();
+        if (/^[>|]/.test(rest)) {
+          // Multiline folded or literal
+          const descLines = [];
+          for (let j = i + 1; j < lines.length; j++) {
+            if (/^\s{2,}/.test(lines[j])) {
+              descLines.push(lines[j].trim());
+            } else if (lines[j].trim() === '') {
+              continue;
+            } else {
+              break;
+            }
+          }
+          desc = descLines.join(' ');
+        } else {
+          // Inline description (may also span if indented)
+          const descLines = [rest];
+          for (let j = i + 1; j < lines.length; j++) {
+            if (/^\s{2,}/.test(lines[j])) {
+              descLines.push(lines[j].trim());
+            } else {
+              break;
+            }
+          }
+          desc = descLines.join(' ');
+        }
+        break;
+      }
     }
   }
+
+  desc = desc.replace(/^["']|["']$/g, '').trim();
   if (!desc) {
     desc = 'Antigravity procedural skill for ' + name + '.';
   }
@@ -109,8 +139,8 @@ for (const cat of categories) {
   md += '| :--- | :--- |\n';
   for (const item of catSkills) {
     let cleanDesc = item.desc.replace(/\|/g, '-').replace(/`/g, "'");
-    if (cleanDesc.length > 200) {
-      cleanDesc = cleanDesc.substring(0, 197) + '...';
+    if (cleanDesc.length > 220) {
+      cleanDesc = cleanDesc.substring(0, 217) + '...';
     }
     md += '| [`' + item.name + '`](' + item.relPath + ') | ' + cleanDesc + ' |\n';
   }
@@ -123,4 +153,4 @@ md += 'Dự án được phân phối dưới giấy phép **[MIT License](LICEN
 md += 'Tác giả: **[Hieu (hieuit095)](https://github.com/hieuit095)**\n';
 
 fs.writeFileSync(path.join(repoRoot, 'README.md'), md, 'utf8');
-console.log('Successfully created README.md with ' + parsedSkills.length + ' skills!');
+console.log('Successfully updated README.md with perfect descriptions for ' + parsedSkills.length + ' skills!');
